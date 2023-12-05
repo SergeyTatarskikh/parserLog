@@ -168,9 +168,12 @@ $this->registerJs("
         var os = $('#os').val();
         var architecture = $('#architecture').val();
 
-
+        var diffInDays = Math.floor((Date.parse(dateTo) - Date.parse(dateFrom)) / (1000 * 60 * 60 * 24));
         var queryParams = '?dateFrom=' + dateFrom + '&dateTo=' + dateTo + '&os=' + os + '&architecture=' + architecture;
-
+        if (diffInDays > 365) {
+            alert('Диапазон между выбранными датами не должен превышать 1 год.');
+            return;
+        }
 
         window.location.href = window.location.pathname + queryParams;
     });
