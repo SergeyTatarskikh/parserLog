@@ -87,7 +87,7 @@ class SiteController extends Controller
 
         $data = $query->all();
 
-        // Calculate browser share
+
         $totalRequests = array_sum(array_column($data, 'request_count'));
         foreach ($data as &$row) {
             $row['browser_share'] = ($row['request_count'] / $totalRequests) * 100;

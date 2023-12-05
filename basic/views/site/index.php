@@ -158,24 +158,24 @@ $this->registerJs("
         function getCellValue(row, index){ return $(row).children('td').eq(index).text(); }
     });
 
-    // Function to handle form submission and apply filters
-    $('#filterForm').submit(function(event) {
-        event.preventDefault(); // Prevent form submission
 
-        // Get filter values
+    $('#filterForm').submit(function(event) {
+        event.preventDefault();
+
+
         var dateFrom = $('#dateFrom').val();
         var dateTo = $('#dateTo').val();
         var os = $('#os').val();
         var architecture = $('#architecture').val();
 
-        // Construct the query parameters
+
         var queryParams = '?dateFrom=' + dateFrom + '&dateTo=' + dateTo + '&os=' + os + '&architecture=' + architecture;
 
-        // Reload the page with query parameters to pass the filter values
+
         window.location.href = window.location.pathname + queryParams;
     });
 
-    // Restore filter values from query parameters on page load
+
     $(document).ready(function() {
         var urlParams = new URLSearchParams(window.location.search);
         $('#dateFrom').val(urlParams.get('dateFrom'));

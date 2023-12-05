@@ -5,7 +5,7 @@ namespace app\commands;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
-use app\models\LogData; // Предположим, что у вас есть модель LogData для работы с данными логов
+use app\models\LogData;
 
 class ParseLogController extends Controller
 {
@@ -19,7 +19,7 @@ class ParseLogController extends Controller
         }
 
         $batchSize = 1000;
-        $lines = file($filePath, FILE_IGNORE_NEW_LINES); // Считываем файл построчно
+        $lines = file($filePath, FILE_IGNORE_NEW_LINES);
 
 
         $batchData = [];
@@ -29,11 +29,11 @@ class ParseLogController extends Controller
 
             if (count($batchData) === $batchSize) {
                 $this->saveBatchData($batchData);
-                $batchData = []; // Очищаем массив для следующего пакета данных
+                $batchData = [];
             }
         }
 
-        // Сохраняем оставшиеся данные, если их количество меньше $batchSize
+
         if (!empty($batchData)) {
             $this->saveBatchData($batchData);
             $this->deleteInvalidDates();
@@ -75,8 +75,8 @@ class ParseLogController extends Controller
         if (isset($matches[1])) {
             return $matches[1];
         } else {
-            // Обработка случая, когда совпадение не найдено или нет захватывающих групп
-            return "Unknow"; // или любое другое значение по вашему выбору
+
+            return "Unknow";
         }
     }
 
@@ -98,7 +98,7 @@ class ParseLogController extends Controller
             }
         }
 
-        // Если дата не была распознана ни в одном из форматов, вернуть null или другое значение по вашему выбору
+
         return null;
     }
 
@@ -115,8 +115,8 @@ class ParseLogController extends Controller
         if (isset($matches[1])) {
             return $matches[1];
         } else {
-            // Обработка случая, когда совпадение не найдено или нет захватывающих групп
-            return null; // Или любое другое значение по вашему выбору
+
+            return null;
         }
     }
 
@@ -184,7 +184,7 @@ class ParseLogController extends Controller
 
         if (!$result) {
             echo "Произошла ошибка при сохранении данных в базу данных.\n";
-            exit(1); // Используем exit() вместо return для завершения выполнения скрипта с ошибкой
+            exit(1);
         }
     }
 
@@ -198,7 +198,7 @@ class ParseLogController extends Controller
 
         if ($result === false) {
             echo "Произошла ошибка при удалении записей с недопустимой датой из базы данных.\n";
-            exit(1); // Используем exit() вместо return для завершения выполнения скрипта с ошибкой
+            exit(1);
         }
     }
 
