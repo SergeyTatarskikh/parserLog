@@ -1,12 +1,34 @@
 <script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <h1>Таблица запросов</h1>
+<form id="filterForm">
+    <label for="dateFrom">Дата от:</label>
+    <input type="date" id="dateFrom" name="dateFrom">
+    <label for="dateTo">Дата до:</label>
+    <input type="date" id="dateTo" name="dateTo">
+    <label for="os">ОС:</label>
+    <select id="os" name="os">
+        <option value="">Все</option>
+        <option value="Windows">Windows</option>
+        <option value="Android">Android</option>
+        <option value="Linux">Linux</option>
+    </select>
+    <label for="architecture">Архитектура:</label>
+    <select id="architecture" name="architecture">
+        <option value="">Все</option>
+        <option value="x86">x86</option>
+        <option value="x64">x64</option>
+    </select>
+    <button type="submit">Применить фильтр</button>
+</form>
 <table class="table">
     <tr>
         <th>Дата запроса</th>
         <th>Число запросов</th>
         <th>Самый популярный URL</th>
         <th>Самый популярный браузер</th>
-        <th>Доля запросов</th>
+
     </tr>
     <?php use yii\helpers\Html;
     foreach ($data as $row): ?>
@@ -15,7 +37,7 @@
             <td><?= Html::encode($row['request_count']) ?></td>
             <td><?= Html::encode($row['popular_url']) ?></td>
             <td><?= Html::encode($row['popular_browser']) ?></td>
-            <td><?= Html::encode($row['browser_share']) ?></td>
+
         </tr>
     <?php endforeach; ?>
 </table>
@@ -57,7 +79,7 @@ $browserSharesPercentage = [];
 $popularBrowsers = [];
 foreach ($data as $row) {
     $browserSharesPercentage[] = $row['browser_share'];
-    $popularBrowsers[] = $row['popular_browser'];// Assuming 'browser_share' already represents the percentage
+    $popularBrowsers[] = $row['popular_browser'];
 }
 
 $this->registerJs("
@@ -73,21 +95,94 @@ $this->registerJs("
                 text: 'Доля запросов (%)'
             }
         },
-        series: [{
-            name: " . json_encode($popularBrowsers[0]) . ",
-            data: " . json_encode($browserSharesPercentage) . "
-        },
-        {
-            name: " . json_encode($popularBrowsers[1]) . ",
-            data: " . json_encode($browserSharesPercentage) . "
-        },
-        {
-            name: " . json_encode($popularBrowsers[2]) . ",
-            data: " . json_encode($browserSharesPercentage) . "
-        }
+        series: [
+            " . (isset($popularBrowsers[0]) ? "
+            {
+                name: " . json_encode($popularBrowsers[0]) . ",
+                data: " . json_encode($browserSharesPercentage) . "
+            }," : "") . (isset($popularBrowsers[1]) ? "
+            {
+                name: " . json_encode($popularBrowsers[1]) . ",
+                data: " . json_encode($browserSharesPercentage) . "
+            }," : "") . (isset($popularBrowsers[2]) ? "
+            {
+                name: " . json_encode($popularBrowsers[2]) . ",
+                data: " . json_encode($browserSharesPercentage) . "
+            }" : "") . "
         ]
     });
 ");
 
 
+
+
+
+$this->registerJs("
+   
+    $('#filterForm').submit(function(event) {
+        event.preventDefault(); // Prevent form submission
+
+        var dateFrom = $('#dateFrom').val();
+        var dateTo = $('#dateTo').val();
+        var os = $('#os').val();
+        var architecture = $('#architecture').val();
+
+        var queryParams = '?dateFrom=' + dateFrom + '&dateTo=' + dateTo + '&os=' + os + '&architecture=' + architecture;
+        window.location.href = window.location.pathname + queryParams;
+    });
+");
 ?>
+<style>
+    th:hover {
+        cursor: pointer; /* Изменение формы курсора при наведении на заголовки таблицы */
+    }
+</style>
+<script>
+    // Добавление возможности сортировки для каждой колонки таблицы
+    $(document).ready(function(){
+        $('table').each(function(){
+            $(this).find('th').slice(0, 4).click(function(){
+                var table = $(this).parents('table').eq(0);
+                var rows = table.find('tr:gt(0)').toArray().sort(comparer($(this).index()));
+                this.asc = !this.asc;
+                if (!this.asc){rows = rows.reverse();}
+                for (var i = 0; i < rows.length; i++){table.append(rows[i]);}
+            });
+        });
+        function comparer(index) {
+            return function(a, b) {
+                var valA = getCellValue(a, index), valB = getCellValue(b, index);
+                return $.isNumeric(valA) && $.isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB);
+            };
+        }
+        function getCellValue(row, index){ return $(row).children('td').eq(index).text(); }
+    });
+
+    // Function to handle form submission and apply filters
+    $('#filterForm').submit(function(event) {
+        event.preventDefault(); // Prevent form submission
+
+        // Get filter values
+        var dateFrom = $('#dateFrom').val();
+        var dateTo = $('#dateTo').val();
+        var os = $('#os').val();
+        var architecture = $('#architecture').val();
+
+        // Construct the query parameters
+        var queryParams = '?dateFrom=' + dateFrom + '&dateTo=' + dateTo + '&os=' + os + '&architecture=' + architecture;
+
+        // Reload the page with query parameters to pass the filter values
+        window.location.href = window.location.pathname + queryParams;
+    });
+
+    // Restore filter values from query parameters on page load
+    $(document).ready(function() {
+        var urlParams = new URLSearchParams(window.location.search);
+        $('#dateFrom').val(urlParams.get('dateFrom'));
+        $('#dateTo').val(urlParams.get('dateTo'));
+        $('#os').val(urlParams.get('os'));
+        $('#architecture').val(urlParams.get('architecture'));
+    });
+
+
+</script>

@@ -61,30 +61,43 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        $connection = Yii::$app->getDb();
-        $command = $connection->createCommand("
-        SELECT DATE(timedate) AS date, COUNT(*) AS request_count, MAX(url) AS popular_url, MAX(browser) AS popular_browser
-        FROM logs
-        GROUP BY DATE(timedate)
-        ORDER BY date DESC
-    ");
-        $data = $command->queryAll();
+        $dateFrom = Yii::$app->request->get('dateFrom');
+        $dateTo = Yii::$app->request->get('dateTo');
+        $os = Yii::$app->request->get('os');
+        $architecture = Yii::$app->request->get('architecture');
 
-        // Calculate browser share
-        $browserShares = [];
-        foreach ($data as $row) {
-            $browserShares[] = $row['request_count'] / array_sum(array_column($data, 'request_count')) * 100;
+        $query = (new \yii\db\Query())
+            ->select('DATE(timedate) AS date, COUNT(*) AS request_count, MAX(url) AS popular_url, MAX(browser) AS popular_browser')
+            ->from('logs')
+            ->groupBy('DATE(timedate)')
+            ->orderBy(['date' => SORT_DESC]);
+
+        if ($dateFrom) {
+            $query->andWhere(['>=', 'timedate', $dateFrom]);
+        }
+        if ($dateTo) {
+            $query->andWhere(['<=', 'timedate', $dateTo]);
+        }
+        if ($os) {
+            $query->andWhere(['os' => $os]);
+        }
+        if ($architecture) {
+            $query->andWhere(['architecture' => $architecture]);
         }
 
-        // Add browser_share to $data
-        foreach ($data as $key => $row) {
-            $data[$key]['browser_share'] = $browserShares[$key];
+        $data = $query->all();
+
+        // Calculate browser share
+        $totalRequests = array_sum(array_column($data, 'request_count'));
+        foreach ($data as &$row) {
+            $row['browser_share'] = ($row['request_count'] / $totalRequests) * 100;
         }
 
         return $this->render('index', [
             'data' => $data,
         ]);
     }
+
 
 
 
