@@ -1,53 +1,93 @@
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<h1>Таблица запросов</h1>
+<table class="table">
+    <tr>
+        <th>Дата запроса</th>
+        <th>Число запросов</th>
+        <th>Самый популярный URL</th>
+        <th>Самый популярный браузер</th>
+        <th>Доля запросов</th>
+    </tr>
+    <?php use yii\helpers\Html;
+    foreach ($data as $row): ?>
+        <tr>
+            <td><?= Html::encode($row['date']) ?></td>
+            <td><?= Html::encode($row['request_count']) ?></td>
+            <td><?= Html::encode($row['popular_url']) ?></td>
+            <td><?= Html::encode($row['popular_browser']) ?></td>
+            <td><?= Html::encode($row['browser_share']) ?></td>
+        </tr>
+    <?php endforeach; ?>
+</table>
+
+<div id="chart1"></div>
+<div id="chart2"></div>
+
 <?php
+// График 1: по оси x - даты, по оси y - число запросов
+$dates = [];
+$requestCounts = [];
+foreach ($data as $row) {
+    $dates[] = $row['date'];
+    $requestCounts[] = $row['request_count'];
+}
 
-/** @var yii\web\View $this */
+$this->registerJs("
+    Highcharts.chart('chart1', {
+        title: {
+            text: 'График 1: Число запросов по датам'
+        },
+        xAxis: {
+            categories: " . json_encode($dates) . "
+        },
+        yAxis: {
+            title: {
+                text: 'Число запросов'
+            }
+        },
+        series: [{
+            name: 'Число запросов',
+            data: " . json_encode($requestCounts) . "
+        }]
+    });
+");
 
-$this->title = 'My Yii Application';
+// График 2: по оси x - даты, по оси y - доля (% от числа запросов) для трех самых популярных браузеров
+$browserSharesPercentage = [];
+$popularBrowsers = [];
+foreach ($data as $row) {
+    $browserSharesPercentage[] = $row['browser_share'];
+    $popularBrowsers[] = $row['popular_browser'];// Assuming 'browser_share' already represents the percentage
+}
+
+$this->registerJs("
+    Highcharts.chart('chart2', {
+        title: {
+            text: 'График 2: Доля запросов для 3 самых популярных браузеров'
+        },
+        xAxis: {
+            categories: " . json_encode($dates) . "
+        },
+        yAxis: {
+            title: {
+                text: 'Доля запросов (%)'
+            }
+        },
+        series: [{
+            name: " . json_encode($popularBrowsers[0]) . ",
+            data: " . json_encode($browserSharesPercentage) . "
+        },
+        {
+            name: " . json_encode($popularBrowsers[1]) . ",
+            data: " . json_encode($browserSharesPercentage) . "
+        },
+        {
+            name: " . json_encode($popularBrowsers[2]) . ",
+            data: " . json_encode($browserSharesPercentage) . "
+        }
+        ]
+    });
+");
+
+
 ?>
-<div class="site-index">
-
-    <div class="jumbotron text-center bg-transparent mt-5 mb-5">
-        <h1 class="display-4">Congratulations!</h1>
-
-        <p class="lead">You have successfully created your Yii-powered application.</p>
-
-        <p><a class="btn btn-lg btn-success" href="https://www.yiiframework.com">Get started with Yii</a></p>
-    </div>
-
-    <div class="body-content">
-
-        <div class="row">
-            <div class="col-lg-4 mb-3">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/doc/">Yii Documentation &raquo;</a></p>
-            </div>
-            <div class="col-lg-4 mb-3">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/forum/">Yii Forum &raquo;</a></p>
-            </div>
-            <div class="col-lg-4">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/extensions/">Yii Extensions &raquo;</a></p>
-            </div>
-        </div>
-
-    </div>
-</div>

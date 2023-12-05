@@ -2,6 +2,7 @@
 
 namespace app\commands;
 
+use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
 use app\models\LogData; // Предположим, что у вас есть модель LogData для работы с данными логов
@@ -10,34 +11,32 @@ class ParseLogController extends Controller
 {
     public function actionIndex()
     {
-        $filePath = 'web/logs.1'; // Путь к файлу логов
+        $filePath = 'web/logs.1';
 
         if (!file_exists($filePath)) {
             echo "Файл логов не найден.\n";
             return ExitCode::UNSPECIFIED_ERROR;
         }
 
-        $fileContent = file_get_contents($filePath); // Получаем содержимое файла
+        $batchSize = 1000;
+        $lines = file($filePath, FILE_IGNORE_NEW_LINES); // Считываем файл построчно
 
-        $lines = explode("\n", $fileContent); // Разбиваем содержимое файла на строки
 
+        $batchData = [];
         foreach ($lines as $line) {
-            $data = $this->parseLine($line); // Парсим каждую строку
+            $data = $this->parseLine($line);
+            $batchData[] = $data;
 
-            // Создаем новый объект модели LogData
-            $logData = new LogData();
-            $logData->ip = $data['ip'];
-            $logData->timedate = $data['timedate'];
-            $logData->url = $data['url'];
-            $logData->os = $data['os'];
-            $logData->architecture = $data['architecture'];
-            $logData->browser = $data['browser'];
-
-
-            if (!$logData->save()) {
-                echo "Произошла ошибка при сохранении данных в базу данных.\n";
-                return ExitCode::UNSPECIFIED_ERROR;
+            if (count($batchData) === $batchSize) {
+                $this->saveBatchData($batchData);
+                $batchData = []; // Очищаем массив для следующего пакета данных
             }
+        }
+
+        // Сохраняем оставшиеся данные, если их количество меньше $batchSize
+        if (!empty($batchData)) {
+            $this->saveBatchData($batchData);
+            $this->deleteInvalidDates();
         }
 
         echo "Данные успешно загружены в базу данных.\n";
@@ -49,13 +48,14 @@ class ParseLogController extends Controller
         $pattern = '/^(\S+) \S+ \S+ \[(.*?)\] "(.*?)" \S+ \S+ "(.*?)" "(.*?)"/';
         preg_match($pattern, $line, $matches);
 
-        $ip = $matches[1];
-        $timedate = $this->parseTimedate($matches[2]); // Извлекаем дату с помощью нового метода parseTimedate
-        $url = $this->parseUrl($matches[3]);
-        $userAgent = $matches[5];
-        $os = $this->parseOs($userAgent);
-        $architecture = $this->parseArchitecture($userAgent);
-        $browser = $this->parseBrowser($userAgent);
+        $ip = isset($matches[1]) ? $this->parseIp($matches[1]) : null;
+        $timedate = isset($matches[2]) ? $this->parseTimedate($matches[2]) : null;
+        $url = isset($matches[3]) ? $this->parseUrl($matches[3]) : null;
+        $userAgent = isset($matches[5]) ? $matches[5] : null;
+        $os = $userAgent ? $this->parseOs($userAgent) : null;
+        $architecture = $userAgent ? $this->parseArchitecture($userAgent) : null;
+        $browser = $userAgent ? $this->parseBrowser($userAgent) : null;
+
 
         return [
             'ip' => $ip,
@@ -67,11 +67,44 @@ class ParseLogController extends Controller
         ];
     }
 
+    private function parseIp($ip)
+    {
+        $pattern = '/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/';
+        preg_match($pattern, $ip, $matches);
+
+        if (isset($matches[1])) {
+            return $matches[1];
+        } else {
+            // Обработка случая, когда совпадение не найдено или нет захватывающих групп
+            return "Unknow"; // или любое другое значение по вашему выбору
+        }
+    }
+
     private function parseTimedate($timedate)
     {
-        $dateTime = \DateTime::createFromFormat('d/M/Y:H:i:s O', $timedate);
-        return $dateTime->format('Y-m-d H:i:s');
+        $formats = [
+            'd/M/Y:H:i:s O',
+            'd/M/Y:H:i:s P',
+            'd/M/Y:H:i:s e',
+            'd/M/Y:H:i:s T',
+            'd/M/Y:H:i:s Z',
+            'd/M/Y:H:i:s',
+        ];
+
+        foreach ($formats as $format) {
+            $dateTime = \DateTimeImmutable::createFromFormat($format, $timedate);
+            if ($dateTime !== false) {
+                return $dateTime->format('Y-m-d H:i:s');
+            }
+        }
+
+        // Если дата не была распознана ни в одном из форматов, вернуть null или другое значение по вашему выбору
+        return null;
     }
+
+
+
+
 
 
     private function parseUrl($request)
@@ -128,8 +161,8 @@ class ParseLogController extends Controller
 
         if (strpos($userAgent, 'Chrome') !== false) {
             $browser = 'Chrome';
-        } elseif (strpos($userAgent, 'Firefox') !== false) {
-            $browser = 'Firefox';
+        } elseif (strpos($userAgent, 'Mozilla') !== false) {
+            $browser = 'Mozilla';
         } elseif (strpos($userAgent, 'Safari') !== false) {
             $browser = 'Safari';
         } elseif (strpos($userAgent, 'Opera') !== false || strpos($userAgent, 'OPR') !== false) {
@@ -142,5 +175,33 @@ class ParseLogController extends Controller
 
         return $browser;
     }
+
+    private function saveBatchData($batchData)
+    {
+        $result = LogData::getDb()->createCommand()->batchInsert(LogData::tableName(), [
+            'ip', 'timedate', 'url', 'os', 'architecture', 'browser'
+        ], $batchData)->execute();
+
+        if (!$result) {
+            echo "Произошла ошибка при сохранении данных в базу данных.\n";
+            exit(1); // Используем exit() вместо return для завершения выполнения скрипта с ошибкой
+        }
+    }
+
+    private function deleteInvalidDates()
+    {
+        $connection = Yii::$app->getDb();
+        $command = $connection->createCommand("
+        DELETE FROM logs WHERE timedate = '0000-00-00 00:00:00'
+    ");
+        $result = $command->execute();
+
+        if ($result === false) {
+            echo "Произошла ошибка при удалении записей с недопустимой датой из базы данных.\n";
+            exit(1); // Используем exit() вместо return для завершения выполнения скрипта с ошибкой
+        }
+    }
+
+
 
 }
